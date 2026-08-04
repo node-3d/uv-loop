@@ -4,6 +4,7 @@ import { clearIdle, clearIdleLoop, refIdle, setIdle, setIdleLoop, unrefIdle } fr
 import type { TIdleHandle } from './index.ts';
 
 test('setIdle calls callback once', async () => {
+	refIdle();
 	let calls = 0;
 
 	await new Promise<void>((res) => {
@@ -17,9 +18,11 @@ test('setIdle calls callback once', async () => {
 		setImmediate(res);
 	});
 	assert.equal(calls, 1);
+	unrefIdle();
 });
 
 test('setIdleLoop calls callback until cleared', async () => {
+	refIdle();
 	const state: { handle?: TIdleHandle } = {};
 	let calls = 0;
 
@@ -37,19 +40,23 @@ test('setIdleLoop calls callback until cleared', async () => {
 	assert.ok(state.handle);
 	assert.ok(calls >= 3);
 	clearIdle(state.handle);
+	unrefIdle();
 });
 
-test('refIdle and unrefIdle accept active handles', async () => {
+test('refIdle and unrefIdle control the shared pump', async () => {
+	refIdle();
 	const handle = setIdleLoop(() => {
 		clearIdleLoop(handle);
 	});
 
-	unrefIdle(handle);
-	refIdle(handle);
+	unrefIdle();
+	refIdle();
 
 	await new Promise<void>((res) => {
 		setImmediate(res);
 	});
+
+	unrefIdle();
 });
 
 test('clearIdle accepts missing handles', () => {

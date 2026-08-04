@@ -7,8 +7,8 @@ npm install @node-3d/uv-loop
 ```
 
 `@node-3d/uv-loop` is a deliberately small native addon that exposes a hot
-libuv idle loop primitive. It does not know about GLFW, WebGL, Three.js, or
-Node3D frame policies.
+libuv idle loop primitive. It starts one shared unref'd idle pump when imported.
+It does not know about GLFW, WebGL, Three.js, or Node3D frame policies.
 
 The API mirrors Node's timer handle style:
 
@@ -30,8 +30,8 @@ const loop = setIdleLoop(() => {
 * `clearIdle(handle)` - clears a one-shot or loop idle handle.
 * `setIdleLoop(callback)` - calls a callback on every libuv idle turn until cleared.
 * `clearIdleLoop(handle)` - alias for `clearIdle`.
-* `refIdle(handle)` - keeps the process alive while the handle is active.
-* `unrefIdle(handle)` - allows the process to exit while the handle is active.
+* `refIdle()` - keeps the process alive while the shared idle pump is active.
+* `unrefIdle()` - allows the process to exit while the shared idle pump is active.
 
 ## ABI Notice
 

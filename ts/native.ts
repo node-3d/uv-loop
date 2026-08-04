@@ -3,12 +3,13 @@ import { getBin } from '@node-3d/addon-tools';
 
 export type TNativeIdleHandle = object & { readonly __idleHandle: unique symbol };
 
+type TNativeIdleLoop = {
+	ref: () => void;
+	unref: () => void;
+};
+
 type TNative = {
-	setIdle: (callback: () => void) => TNativeIdleHandle;
-	setIdleLoop: (callback: () => void) => TNativeIdleHandle;
-	clearIdle: (handle: TNativeIdleHandle | null | undefined) => void;
-	refIdle: (handle: TNativeIdleHandle) => void;
-	unrefIdle: (handle: TNativeIdleHandle) => void;
+	setIdleLoop: (callback: (() => void) | null) => TNativeIdleLoop;
 };
 
 const loadAddon = createRequire(import.meta.url);
