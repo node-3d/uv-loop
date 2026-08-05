@@ -4,7 +4,7 @@
 	},
 	'targets': [{
 		'target_name': 'uv-loop',
-		'includes': ['common.gypi'],
+		'includes': ['common.gypi', 'node26-msvc.gypi'],
 		'defines': ['NODE_ADDON_API_DISABLE_CPP_EXCEPTIONS'],
 		'sources': [
 			'cpp/bindings.cpp',
