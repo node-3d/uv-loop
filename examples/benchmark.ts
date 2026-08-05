@@ -1,4 +1,4 @@
-import { clearIdleLoop, refIdle, setIdle, setIdleLoop, unrefIdle } from '@node-3d/uv-loop';
+import { clearIdleLoop, setIdle, setIdleLoop } from '@node-3d/uv-loop';
 
 type TResult = {
 	name: string;
@@ -81,10 +81,6 @@ const runSetIdleLoop = (): Promise<TResult> =>
 		});
 	});
 
-refIdle();
-
 const results = [await runSetImmediate(), await runSetIdle(), await runSetIdleLoop()];
-
-unrefIdle();
 
 console.table(results);

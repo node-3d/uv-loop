@@ -1,26 +1,42 @@
 import { native } from './native.ts';
 
-export type TIdleHandle = number & { readonly __idleHandle: unique symbol };
+export type TIdleHandle = {
+	ref: () => TIdleHandle;
+	unref: () => TIdleHandle;
+	hasRef: () => boolean;
+};
 export type TIdleCallback = () => void;
 
 type TRegistration = {
 	callback: TIdleCallback;
 	once: boolean;
+	isRefed: boolean;
 };
 
-const registrations = new Map<number, TRegistration>();
-let nextId = 1;
+const registrations = new Map<TIdleHandle, TRegistration>();
+let refedRegistrations = 0;
+
+export const clearIdle = (handle: TIdleHandle | null | undefined): void => {
+	if (handle === null || handle === undefined) {
+		return;
+	}
+
+	handle.unref();
+	registrations.delete(handle);
+};
+
+export const clearIdleLoop = clearIdle;
 
 const idleLoop = native.setIdleLoop(() => {
 	const snapshot = [...registrations];
 
-	for (const [id, registration] of snapshot) {
-		if (registrations.get(id) !== registration) {
+	for (const [handle, registration] of snapshot) {
+		if (registrations.get(handle) !== registration) {
 			continue;
 		}
 
 		if (registration.once) {
-			registrations.delete(id);
+			clearIdle(handle);
 		}
 
 		registration.callback();
@@ -28,34 +44,55 @@ const idleLoop = native.setIdleLoop(() => {
 });
 
 process.once('beforeExit', () => {
+	registrations.clear();
+	refedRegistrations = 0;
 	native.setIdleLoop(null);
 });
 
+const refNativeIdleLoop = (): void => {
+	if (refedRegistrations++ === 0) {
+		idleLoop.ref();
+	}
+};
+
+const unrefNativeIdleLoop = (): void => {
+	if (refedRegistrations === 0) {
+		return;
+	}
+
+	refedRegistrations--;
+	if (refedRegistrations === 0) {
+		idleLoop.unref();
+	}
+};
+
 const addRegistration = (callback: TIdleCallback, once: boolean): TIdleHandle => {
-	const id = nextId++;
-	registrations.set(id, { callback, once });
-	return id as TIdleHandle;
+	const handle: TIdleHandle = {
+		ref: () => {
+			const registration = registrations.get(handle);
+			if (registration && !registration.isRefed) {
+				registration.isRefed = true;
+				refNativeIdleLoop();
+			}
+			return handle;
+		},
+		unref: () => {
+			const registration = registrations.get(handle);
+			if (registration?.isRefed) {
+				registration.isRefed = false;
+				unrefNativeIdleLoop();
+			}
+			return handle;
+		},
+		hasRef: () => registrations.get(handle)?.isRefed ?? false,
+	};
+
+	registrations.set(handle, { callback, once, isRefed: false });
+	handle.ref();
+	return handle;
 };
 
 export const setIdle = (callback: TIdleCallback): TIdleHandle => addRegistration(callback, true);
 
 export const setIdleLoop = (callback: TIdleCallback): TIdleHandle =>
 	addRegistration(callback, false);
-
-export const clearIdle = (handle: TIdleHandle | null | undefined): void => {
-	if (handle === null || handle === undefined) {
-		return;
-	}
-
-	registrations.delete(handle);
-};
-
-export const clearIdleLoop = clearIdle;
-
-export const refIdle = (): void => {
-	idleLoop.ref();
-};
-
-export const unrefIdle = (): void => {
-	idleLoop.unref();
-};
