@@ -25,7 +25,7 @@ const finish = (name: string, startedAt: number, ticks: number): TResult => {
 	};
 };
 
-const runSetImmediate = (): Promise<TResult> =>
+const runSetImmediate = async (): Promise<TResult> =>
 	new Promise((res) => {
 		const startedAt = now();
 		const deadline = startedAt + durationMs;
@@ -45,7 +45,7 @@ const runSetImmediate = (): Promise<TResult> =>
 		setImmediate(loop);
 	});
 
-const runSetIdle = (): Promise<TResult> =>
+const runSetIdle = async (): Promise<TResult> =>
 	new Promise((res) => {
 		const startedAt = now();
 		const deadline = startedAt + durationMs;
@@ -65,7 +65,7 @@ const runSetIdle = (): Promise<TResult> =>
 		setIdle(loop);
 	});
 
-const runSetIdleLoop = (): Promise<TResult> =>
+const runSetIdleLoop = async (): Promise<TResult> =>
 	new Promise((res) => {
 		const startedAt = now();
 		const deadline = startedAt + durationMs;

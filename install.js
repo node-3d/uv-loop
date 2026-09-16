@@ -3,10 +3,10 @@ import { getLogger, install } from '@node-3d/addon-tools';
 const prefix = 'https://github.com/node-3d/uv-loop/releases/download';
 const logger = getLogger('uv-loop');
 const version = '0.1.0';
-const NODE_VERSION_MIN = 20;
+const NODE_VERSION_MIN = 22;
 const NODE_VERSION_MAX = 26;
 
-const runtimeNodeMajor = Number.parseInt(process.versions.node.split('.')[0] || '', 10);
+const runtimeNodeMajor = Number.parseInt(process.versions.node.split('.')[0] ?? '', 10);
 
 const getBinaryNodeMajor = (nodeMajor) => {
 	if (!Number.isSafeInteger(nodeMajor)) {

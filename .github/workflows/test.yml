@@ -1,0 +1,60 @@
+name: Test
+defaults:
+  run:
+    shell: bash
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  unit-tests:
+    name: Unit Tests (${{ matrix.target }}, Node ${{ matrix.node_version }})
+    strategy:
+      fail-fast: false
+      matrix:
+        node_version: [22.18.0, 24.13.0, 26.8.1]
+        include:
+          - target: windows-x64
+            os: windows-2022
+            node_arch: x64
+          - target: windows-arm64
+            os: windows-11-arm
+            node_arch: arm64
+          - target: linux-x64
+            os: ubuntu-22.04
+            node_arch: x64
+          - target: linux-arm64
+            os: ubuntu-22.04-arm
+            node_arch: arm64
+          - target: darwin-x64
+            os: macos-26
+            node_arch: x64
+          - target: darwin-arm64
+            os: macos-26
+            node_arch: arm64
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Fetch Repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Install Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ matrix.node_version }}
+          architecture: ${{ matrix.node_arch }}
+          cache: npm
+
+      - name: Install Modules
+        run: npm ci
+
+      - name: Run Tests
+        run: npm run test:ci

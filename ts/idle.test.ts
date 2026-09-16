@@ -5,6 +5,7 @@ import { promisify } from 'node:util';
 import { clearIdle, clearIdleLoop, setIdle, setIdleLoop } from './index.ts';
 import type { TIdleHandle } from './index.ts';
 
+// oxlint-disable-next-line typescript/strict-void-return
 const execFile = promisify(execFileCallback);
 
 test('setIdle calls callback once', async () => {

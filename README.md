@@ -123,7 +123,6 @@ and macOS x64/ARM64. Because this addon calls libuv directly, release binaries
 are split by Node.js major version. Install chooses the binary tag from the
 runtime Node.js version:
 
-* Node.js 20 -> `<package-version>-20`
 * Node.js 22 -> `<package-version>-22`
 * Node.js 24 -> `<package-version>-24`
 * Node.js 26 -> `<package-version>-26`
