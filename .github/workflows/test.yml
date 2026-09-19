@@ -22,21 +22,27 @@ jobs:
           - target: windows-x64
             os: windows-2022
             node_arch: x64
+            archflags: ''
           - target: windows-arm64
             os: windows-11-arm
             node_arch: arm64
+            archflags: ''
           - target: linux-x64
             os: ubuntu-22.04
             node_arch: x64
+            archflags: ''
           - target: linux-arm64
             os: ubuntu-22.04-arm
             node_arch: arm64
+            archflags: ''
           - target: darwin-x64
             os: macos-26
             node_arch: x64
+            archflags: '-arch x86_64'
           - target: darwin-arm64
             os: macos-26
             node_arch: arm64
+            archflags: '-arch arm64'
 
     runs-on: ${{ matrix.os }}
 
@@ -53,8 +59,21 @@ jobs:
           architecture: ${{ matrix.node_arch }}
           cache: npm
 
+      - name: Print Native Target
+        run: |
+          echo "runner=$(uname -s)-$(uname -m)"
+          node -p "'node=' + process.version + ' platform=' + process.platform + ' arch=' + process.arch"
+
       - name: Install Modules
-        run: npm ci
+        run: npm ci --ignore-scripts
+
+      - name: Build Current Binary
+        run: |
+          npm exec -- node-gyp rebuild -j max --silent --directory=src --arch=${{ matrix.node_arch }}
+          cd src
+          node -e "import('@node-3d/addon-tools').then(function(m){m.cpbin('uv-loop')})"
+        env:
+          ARCHFLAGS: ${{ matrix.archflags }}
 
       - name: Run Tests
         run: npm run test:ci

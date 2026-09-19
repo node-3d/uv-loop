@@ -1,6 +1,10 @@
 {
 	'variables': {
 		'arch': '<!(node -p "process.arch")',
+		# Node 26's common.gypi evaluates these when node-gyp cross-targets
+		# headers from a different Node version.
+		'enable_thin_lto': 'false',
+		'lto_jobs': '',
 	},
 	'targets': [{
 		'target_name': 'uv-loop',
