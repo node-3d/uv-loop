@@ -17,13 +17,9 @@ permissions:
   attestations: write
 
 jobs:
-  create_release:
-    name: Create Release (Node ${{ matrix.node_major }})
+  package:
+    name: Pack npm Candidate
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        node_major: [22, 24, 26]
 
     steps:
 
@@ -38,29 +34,18 @@ jobs:
           node-version: 24.13.0
           cache: 'npm'
 
-      - name: Get Release Tag
-        id: release-tag
-        run: |
-          release_tag="${{ inputs.release_tag }}"
-          if [ -z "$release_tag" ]; then
-            release_tag="$(node -p "require('./package').version")"
-          fi
-          echo "version=${release_tag}-${{ matrix.node_major }}" >> "$GITHUB_OUTPUT"
+      - name: Install Modules
+        run: npm ci --ignore-scripts
 
-      - name: Create Release
-        uses: softprops/action-gh-release@v3
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ steps.release-tag.outputs.version }}
-          name: Release ${{ steps.release-tag.outputs.version }}
+      - name: Store npm Candidate
+        uses: node-3d/addon-tools/actions/npm-candidate-upload@b40c5ff9d096be46c9e573382e93149256a33a9a
 
   build:
     name: Build (${{ matrix.target }}, Node ${{ matrix.node_major }})
-    needs: create_release
+    needs: package
     strategy:
       fail-fast: false
-      matrix:
+      matrix: &native-matrix
         node_major: [22, 24, 26]
         target:
           - windows-x64
@@ -127,6 +112,49 @@ jobs:
         env:
           ARCHFLAGS: ${{ matrix.archflags }}
 
+      - name: Store Native Candidate
+        uses: node-3d/addon-tools/actions/native-candidate-upload@b40c5ff9d096be46c9e573382e93149256a33a9a
+        with:
+          artifact-name: native-${{ matrix.target }}-node-${{ matrix.node_major }}
+
+  consumer-tests:
+    name: Packed Consumer (${{ matrix.target }}, Node ${{ matrix.node_major }})
+    needs: [package, build]
+    strategy:
+      fail-fast: false
+      matrix: *native-matrix
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ matrix.node_major }}
+          architecture: ${{ matrix.node_arch }}
+      - name: Install Packed Consumer Candidate
+        id: consumer
+        uses: node-3d/addon-tools/actions/consumer-install@b40c5ff9d096be46c9e573382e93149256a33a9a
+        with:
+          package-name: '@node-3d/uv-loop'
+          binary-artifact: native-${{ matrix.target }}-node-${{ matrix.node_major }}
+          fixture: test-consumer
+      - name: Run Packed Consumer Tests
+        working-directory: ${{ steps.consumer.outputs.directory }}
+        run: npm test
+
+  release:
+    name: Create Release (Node ${{ matrix.node_major }})
+    needs: consumer-tests
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node_major: [22, 24, 26]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Get Release Tag
         id: release-tag
         run: |
@@ -135,21 +163,21 @@ jobs:
             release_tag="$(node -p "require('./package').version")"
           fi
           echo "version=${release_tag}-${{ matrix.node_major }}" >> "$GITHUB_OUTPUT"
-
-      - name: Pack Files
-        id: pack-files
-        run: node -e "import('@node-3d/addon-tools').then((m) => m.actionPack())" >> $GITHUB_OUTPUT
-
-      - name: Attest Binary
+      - name: Download Native Candidates
+        uses: actions/download-artifact@v8
+        with:
+          pattern: native-*-node-${{ matrix.node_major }}
+          path: release-candidates
+          merge-multiple: true
+      - name: Attest Binaries
         uses: actions/attest@v4
         with:
-          subject-path: ${{ steps.pack-files.outputs.pack }}
-
-      - name: Store Binaries
+          subject-path: release-candidates/*.gz
+      - name: Create Release
         uses: softprops/action-gh-release@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ steps.release-tag.outputs.version }}
           name: Release ${{ steps.release-tag.outputs.version }}
-          files: ${{ steps.pack-files.outputs.pack }}
+          files: release-candidates/*.gz

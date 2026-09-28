@@ -5,19 +5,36 @@ defaults:
 
 on:
   push:
-    branches:
-      - master
+    branches: [master]
   pull_request:
-    branches:
-      - master
+    branches: [master]
 
 jobs:
+  package:
+    name: Pack npm Candidate
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Fetch Repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Install Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24.13.0
+          cache: npm
+      - name: Install Modules
+        run: npm ci --ignore-scripts
+      - name: Store npm Candidate
+        uses: node-3d/addon-tools/actions/npm-candidate-upload@b40c5ff9d096be46c9e573382e93149256a33a9a
+
   unit-tests:
     name: Unit Tests (${{ matrix.target }}, Node ${{ matrix.node_version }})
     strategy:
       fail-fast: false
-      matrix:
+      matrix: &native-matrix
         node_version: [22.18.0, 24.13.0, 26.8.1]
+        target: [windows-x64, windows-arm64, linux-x64, linux-arm64, darwin-x64, darwin-arm64]
         include:
           - target: windows-x64
             os: windows-2022
@@ -43,30 +60,24 @@ jobs:
             os: macos-26
             node_arch: arm64
             archflags: '-arch arm64'
-
     runs-on: ${{ matrix.os }}
-
     steps:
       - name: Fetch Repository
         uses: actions/checkout@v7
         with:
           persist-credentials: false
-
       - name: Install Node.js
         uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node_version }}
           architecture: ${{ matrix.node_arch }}
           cache: npm
-
       - name: Print Native Target
         run: |
           echo "runner=$(uname -s)-$(uname -m)"
           node -p "'node=' + process.version + ' platform=' + process.platform + ' arch=' + process.arch"
-
       - name: Install Modules
         run: npm ci --ignore-scripts
-
       - name: Build Current Binary
         run: |
           npm exec -- node-gyp rebuild -j max --silent --directory=src --arch=${{ matrix.node_arch }}
@@ -74,6 +85,37 @@ jobs:
           node -e "import('@node-3d/addon-tools').then(function(m){m.cpbin('uv-loop')})"
         env:
           ARCHFLAGS: ${{ matrix.archflags }}
-
       - name: Run Tests
         run: npm run test:ci
+      - name: Store Native Candidate
+        uses: node-3d/addon-tools/actions/native-candidate-upload@b40c5ff9d096be46c9e573382e93149256a33a9a
+        with:
+          artifact-name: native-${{ matrix.target }}-node-${{ matrix.node_version }}
+
+  consumer-tests:
+    name: Packed Consumer (${{ matrix.target }}, Node ${{ matrix.node_version }})
+    needs: [package, unit-tests]
+    strategy:
+      fail-fast: false
+      matrix: *native-matrix
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Fetch Consumer Fixture
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Install Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ matrix.node_version }}
+          architecture: ${{ matrix.node_arch }}
+      - name: Install Packed Consumer Candidate
+        id: consumer
+        uses: node-3d/addon-tools/actions/consumer-install@b40c5ff9d096be46c9e573382e93149256a33a9a
+        with:
+          package-name: '@node-3d/uv-loop'
+          binary-artifact: native-${{ matrix.target }}-node-${{ matrix.node_version }}
+          fixture: test-consumer
+      - name: Run Packed Consumer Tests
+        working-directory: ${{ steps.consumer.outputs.directory }}
+        run: npm test
