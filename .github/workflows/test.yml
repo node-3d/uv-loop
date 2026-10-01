@@ -80,7 +80,7 @@ jobs:
         run: npm ci --ignore-scripts
       - name: Build Current Binary
         run: |
-          npm exec -- node-gyp rebuild -j max --silent --directory=src --arch=${{ matrix.node_arch }}
+          npm exec -- node-gyp rebuild -j max --directory=src --arch=${{ matrix.node_arch }}
           cd src
           node -e "import('@node-3d/addon-tools').then(function(m){m.cpbin('uv-loop')})"
         env:
