@@ -1,7 +1,7 @@
 {
 	"author": "Luis Blanco <luisblanco1337@gmail.com>",
 	"name": "@node-3d/uv-loop",
-	"version": "0.1.1",
+	"version": "0.1.2",
 	"description": "libuv loop scheduling primitives for Node3D",
 	"license": "MIT",
 	"main": "dist/index.js",
